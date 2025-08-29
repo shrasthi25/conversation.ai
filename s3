@@ -1,0 +1,22 @@
+import boto3
+import os
+
+s3 = boto3.client("s3")
+
+def lambda_handler(event, context):
+    bucket_name = "conversationtestdemo"
+    file_key = "conv_2401k3ckwkt9ecc99b12231eg3g8.mp3"
+    
+    # Generate presigned URL valid for 1 hour
+    presigned_url = s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": bucket_name, "Key": file_key},
+        ExpiresIn=3600
+    )
+    
+    return {
+        "statusCode": 200,
+        "body": {
+            "file_url": presigned_url
+        }
+    }
