@@ -1,0 +1,46 @@
+import os
+import json
+import boto3
+import requests
+
+s3_client = boto3.client("s3")
+
+def lambda_handler(event, context):
+    """
+    Lambda handler to fetch ElevenLabs conversation audio 
+    and store it in S3 using the conversation_id as the filename.
+    """
+
+    # Environment variables (set these in Lambda console, not in code)
+    elevenlabs_api_key = os.environ["ELEVENLABS_API_KEY"]
+    elevenlabs_api_url = os.environ["ELEVENLABS_API_URL"]  # e.g., "https://api.elevenlabs.io/v1/conversations"
+    bucket_name = os.environ["S3_BUCKET_NAME"]
+
+    # Get conversation_id from event (or trigger)
+    # Example: event = {"conversation_id": "abc123"}
+    conversation_id = event.get("conversation_id")
+    if not conversation_id:
+        raise ValueError("conversation_id missing in event payload")
+
+    # Construct API endpoint
+    url = f"{elevenlabs_api_url}/{conversation_id}/audio"
+
+    # Call ElevenLabs API
+    headers = {"Authorization": f"Bearer {elevenlabs_api_key}"}
+    response = requests.get(url, headers=headers, stream=True)
+
+    if response.status_code != 200:
+        raise RuntimeError(f"Failed to fetch audio: {response.status_code} - {response.text}")
+
+    # Upload audio file directly to S3
+    key = f"{conversation_id}.mp3"
+    s3_client.upload_fileobj(response.raw, bucket_name, key)
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "message": "Audio stored in S3",
+            "bucket": bucket_name,
+            "file": key
+        })
+    }
